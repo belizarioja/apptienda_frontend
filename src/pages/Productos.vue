@@ -338,7 +338,7 @@ import productosLib from '../logic/productos'
 import authLib from '../logic/auth'
 const config = require('../config/endpoints.js')
 const ENDPOINT_PATH = config.endpoint_path
-const DB_NAME = 'productosdb'
+const DB_NAME = 'apptiendadb'
 const DB_VERSION = 1
 export default defineComponent({
   name: 'PageIndex',
