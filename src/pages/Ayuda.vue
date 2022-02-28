@@ -4,8 +4,8 @@
     <q-card class="my-card" style="margin: 20px">
       <q-card-section style="display: grid;">
         <span>Módulo en construcción.</span>
-        <span>Contacte a soporte de </span>
-        <span><img src="../assets/logobloque7.png" height="140"/></span>
+        <span>Contacte a soporte de AppTienda</span>
+        <span><q-icon name="important_devices" color="primary" style="font-size: 100px;" /></span>
         <span>para mas información</span>
       </q-card-section>
     </q-card>

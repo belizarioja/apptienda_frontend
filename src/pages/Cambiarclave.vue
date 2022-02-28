@@ -157,7 +157,6 @@ export default defineComponent({
     font-size: x-large;
   }
   .formCambiar {
-    border-radius: 10px 10px 0 0;
     padding: 20px;
     position: absolute;
     top: 155px;
@@ -173,7 +172,7 @@ export default defineComponent({
   .menuitem {
     height: 60px;
     width: 60px;
-    border: 1px solid green;
+    border: 1px solid #36d6f6;
     border-radius: 12px;
     display: flex;
     align-items: center;

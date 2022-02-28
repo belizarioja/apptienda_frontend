@@ -202,7 +202,7 @@ export default defineComponent({
         title: 'CONFIRMACIÓN!',
         message: 'Desea agregar a ' + nombrecliente + ', como usuario del sistema?',
         ok: {
-          color: 'primary',
+          color: 'dark',
           label: 'Sí'
         },
         cancel: {
@@ -349,7 +349,7 @@ export default defineComponent({
     align-items: center;
     justify-content: center;
     font-size: 30px;
-    background: #5eb228;
+    background: #36d6f6;
     color: white;
   }
   .menuitem2 {
@@ -361,7 +361,7 @@ export default defineComponent({
     justify-content: center;
     font-size: 15px;
     font-weight: bold;
-    background: #5eb228;
+    background: #36d6f6;
     color: white;
   }
   .subHeaderItem{

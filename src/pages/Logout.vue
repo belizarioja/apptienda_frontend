@@ -1,9 +1,9 @@
 <template>
   <div class="bg-transparent text-center"  style="padding-top: 75px;">
     <span style="font-size:x-large"> Enhorabuena!</span>
-    <p>Gracias por usar nuestra App!</p>
+    <p>Gracias por usar nuestra AppTienda!</p>
     <div class="bannerlogout">
-      <img src="../assets/logobloque7.png" height="115"/>
+      <q-icon name="important_devices" color="primary" style="font-size: 100px;" />
     </div>
     <div class="text-center"  style="margin:20px;">
       <q-btn
@@ -49,6 +49,7 @@ export default defineComponent({
       this.$q.localStorage.remove('usuario')
       this.$q.localStorage.remove('categorias')
       this.$q.localStorage.remove('fechareporte')
+      this.$q.localStorage.remove('basedatosnueva')
     } else {
       this.gotoIndex()
     }

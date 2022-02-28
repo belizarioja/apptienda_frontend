@@ -86,7 +86,7 @@
            v-if="enviados === 0 && eliminados === 0 && guardados === 0 && carrito === 0"
            >
             <q-item style=" display: grid;">
-              <q-icon name="verified" style="color: #8fc969;font-size: 190px;"/>
+              <q-icon name="verified" style="color: #9be9e9;font-size: 190px;"/>
               <span style="text-align: center; color: #707271;">NADA PENDIENTE POR ENVIAR</span>
             </q-item>
           </q-list>
@@ -141,7 +141,20 @@
               </q-item-section>
             </q-item>
           </q-list>
-          <q-card-actions class="justify-center">
+          <q-card-actions
+            v-if="enviados === 0 && eliminados === 0 && guardados === 0 && carrito === 0"
+            class="justify-center">
+            <q-btn
+              style="font-size: 10px;margin-right: 10px;padding: 7px 10px;"
+              label="Aceptar"
+              type="buttom"
+              color="dark"
+              v-close-popup
+            />
+          </q-card-actions>
+          <q-card-actions
+            v-else
+            class="justify-center">
             <q-btn
               style="font-size: 10px;padding: 7px 10px;"
               label="Cancelar"
@@ -154,9 +167,8 @@
               style="font-size: 10px;margin-right: 10px;padding: 7px 10px;"
               label="Enviar"
               type="buttom"
-              color="primary"
+              color="dark"
               icon="send"
-              :disable="btndisableb"
               @click="setSincronized()"
             />
           </q-card-actions>
@@ -177,7 +189,8 @@ import pedidosLib from '../logic/pedidos'
 import moment from 'moment'
 // const config = require('../config/endpoints.js')
 // const ENDPOINT_PATH = config.endpoint_path
-
+const DB_NAME = 'apptiendadb'
+const DB_VERSION = 1
 export default defineComponent({
   name: 'PageIndex',
   data () {
@@ -202,7 +215,8 @@ export default defineComponent({
       enviados,
       eliminados,
       btndisableb,
-      carrito
+      carrito,
+      db: null
     }
   },
   methods: {
@@ -214,7 +228,11 @@ export default defineComponent({
         this.$q.dialog({
           title: 'No tiene CLIENTES!',
           message: 'Debe sincronizar!',
-          persistent: true
+          persistent: true,
+          ok: {
+            color: 'dark',
+            label: 'Aceptar'
+          }
         })
       }
     },
@@ -226,7 +244,11 @@ export default defineComponent({
         this.$q.dialog({
           title: 'No tiene USUARIOS!',
           message: 'Debe sincronizar!',
-          persistent: true
+          persistent: true,
+          ok: {
+            color: 'dark',
+            label: 'Aceptar'
+          }
         })
       }
     },
@@ -238,7 +260,11 @@ export default defineComponent({
         this.$q.dialog({
           title: 'No tiene VENDEDORES!',
           message: 'Debe sincronizar!',
-          persistent: true
+          persistent: true,
+          ok: {
+            color: 'dark',
+            label: 'Aceptar'
+          }
         })
       }
     },
@@ -252,7 +278,11 @@ export default defineComponent({
         this.$q.dialog({
           title: 'No tiene CUENTAS POR COBRAR!',
           message: 'Debe sincronizar!',
-          persistent: true
+          persistent: true,
+          ok: {
+            color: 'dark',
+            label: 'Aceptar'
+          }
         })
       }
     },
@@ -267,7 +297,11 @@ export default defineComponent({
         this.$q.dialog({
           title: 'No tiene PEDIDOS!',
           message: 'Debe sincronizar!',
-          persistent: true
+          persistent: true,
+          ok: {
+            color: 'dark',
+            label: 'Aceptar'
+          }
         })
       }
     },
@@ -279,7 +313,11 @@ export default defineComponent({
         this.$q.dialog({
           title: 'No tiene PRODUCTOS!',
           message: 'Debe sincronizar!',
-          persistent: true
+          persistent: true,
+          ok: {
+            color: 'dark',
+            label: 'Aceptar'
+          }
         })
       }
     },
@@ -468,36 +506,46 @@ export default defineComponent({
     },
     async getProductos () {
       const resp = await productosLib.listar(null)
-      const serverData = []
       const datos = resp.data
-      for (const i in datos) {
-        const item = datos[i]
-        const obj = {}
-        obj.id = item.id
-        obj.nombre = item.nombre
-        obj.precio =
+      const serverData = datos.map(function (item) {
+        const precio = item.precio
+        item.precio =
           item.porkilos === 1
-            ? item.precio
-            : parseFloat(item.precio / item.unixcaja)
-        obj.disponible = item.disponible
-        obj.preciocaj = item.preciocaj
-        obj.unixcaja = item.unixcaja
-        obj.idcategoria = item.idcategoria
-        obj.costoactu = item.costoactu
-        obj.porciva = item.porciva
-        obj.porkilos = item.porkilos
-        obj.imagen = false
-        const resp2 = await productosLib.getfile(item.id)
-        if (resp2.status === 200) {
-          // console.log(resp2)
-          obj.imagen = resp2.data.imgbase64
-        }
-        serverData.push(obj)
-      }
+            ? precio
+            : parseFloat(precio / item.unixcaja)
+        return item
+      })
       console.log(serverData)
       this.loaderproductos = false
       this.$q.localStorage.remove('productos')
       this.$q.localStorage.set('productos', serverData)
+    },
+    async getProductosImg () {
+      this.db = await this.getDb()
+      const datos = this.$q.localStorage.getItem('productos')
+      for (const i in datos) {
+        const item = datos[i]
+        const resp = await productosLib.getfile(item.id)
+        if (resp.status === 200) {
+          const producto = {
+            imagen: item.id,
+            base: resp.data.imgbase64
+          }
+          this.addProdToDb(producto)
+        }
+      }
+    },
+    addProdToDb (item) {
+      // console.log('addProdToDb ', item)
+      return new Promise((resolve, reject) => {
+        const trans = this.db.transaction(['productos'], 'readwrite')
+        trans.oncomplete = e => {
+          resolve()
+        }
+        const store = trans.objectStore('productos')
+        store.put(item)
+        // store.add(item)
+      })
     },
     async getCxc () {
       const serverData = []
@@ -716,11 +764,12 @@ export default defineComponent({
       await this.getItemsHolds()
       await this.getCategorias()
       await this.getClientes().then(() => {
-        // console.log('Sincronizado finalizó sin problema')
+        console.log('Sincronizado finalizó sin problema')
         this.feultget = moment().format('YYYY-MM-DD HH:mm:ss')
         this.$q.localStorage.remove('feultget')
         this.$q.localStorage.set('feultget', this.feultget)
         this.loaderclientes = false
+        this.getProductosImg()
         // this.layoutModal = false
       }).catch(this.falloCallback)
     },
@@ -748,6 +797,24 @@ export default defineComponent({
       return 'data:image/jpeg;base64,' + btoa(
         new Uint8Array(img.data).reduce((data, byte) => data + String.fromCharCode(byte), '')
       )
+    },
+    async getDb () {
+      return new Promise((resolve, reject) => {
+        const request = window.indexedDB.open(DB_NAME, DB_VERSION)
+        request.onerror = e => {
+          console.log('Error opening db', e)
+          reject('Error')
+        }
+        request.onsuccess = e => {
+          resolve(e.target.result)
+        }
+        request.onupgradeneeded = e => {
+          console.log('onupgradeneeded')
+          const db = e.target.result
+          const objStore = db.createObjectStore('productos', { keyPath: 'imagen' })
+          console.log(objStore)
+        }
+      })
     }
   },
   computed: {
@@ -758,6 +825,11 @@ export default defineComponent({
         return false
       }
     }
+  },
+  async created () {
+    // this.db = await this.getDb()
+    // this.cats = await this.getCatsFromDb()
+    // this.ready = true
   },
   mounted () {
     // pedidosLib.corregirClientesNull()

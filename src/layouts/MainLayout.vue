@@ -1,7 +1,7 @@
 <template>
   <q-layout view="lHh Lpr lFf">
     <q-header class="bg-primary text-white">
-      <q-toolbar style="height: 85px;padding-top:30px;">
+      <q-toolbar style="height: 90px;padding-top:30px;">
         <!-- <q-btn
           flat
           dense
@@ -441,7 +441,7 @@ export default defineComponent({
   },
   setup () {
     const $q = useQuasar()
-    $q.addressbarColor.set('#5eb228')
+    $q.addressbarColor.set('#36d6f6')
     const leftDrawerOpen = ref(false)
     // const hidecarrito = ref(false)
     // const hidecxc = ref(false)

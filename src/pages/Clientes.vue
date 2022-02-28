@@ -211,7 +211,7 @@ export default defineComponent({
     align-items: center;
     justify-content: center;
     font-size: 30px;
-    background: #5eb228;
+    background: #36d6f6;
     color: white;
   }
   .subHeaderItem{
@@ -229,7 +229,7 @@ export default defineComponent({
     height: 50px;
     border-radius: 50%;
     color: white;
-    background: #5eb228;
+    background: #36d6f6;
     display: flex;
     justify-content: center;
     padding: 15px 0;

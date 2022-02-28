@@ -1,18 +1,18 @@
 <template>
   <div class="bg-primary headerlogin text-white">
     <div class="">
-      BIENVENIDO A MÓVIL PEDIDO
+      Bienvenido a AppTienda
     </div>
   </div>
   <div class="bg-transparent">
     <div class="bannerlogin">
-      <img src="favicon.ico" height="115"/>
+      <q-icon name="important_devices" color="primary" style="font-size: 100px;" />
     </div>
   </div>
   <div class="q-pa-md  text-white bg-primary formLogin">
     <form
       @submit.prevent="enviarLogin">
-      <div class="text-weight-bold text-center  text-white" style="height:40px;">LOGIN</div>
+      <div class="text-weight-bold text-center  text-white" style="height:40px;">IDENTIFICARSE</div>
       <q-input
         borderless
         standout
@@ -51,7 +51,7 @@
       <div class="text-center"  style="margin-bottom:20px;">
         <q-btn
           style="width: -webkit-fill-available;"
-          label="Login"
+          label="ENVIAR"
           type="submit"
           :loading="loading"
           :disable="isDisabled"
@@ -71,7 +71,8 @@ import auth from '../logic/auth'
 import productosLib from '../logic/productos'
 import categoriasLib from '../logic/categorias'
 import moment from 'moment'
-
+const DB_NAME = 'apptiendadb'
+const DB_VERSION = 1
 export default defineComponent({
   setup () {
     const imei = ref(
@@ -93,36 +94,46 @@ export default defineComponent({
     async getProductos () {
       const resp = await productosLib.listar(null)
       const datos = resp.data
-      const serverData = []
-      for (const i in datos) {
-        const item = datos[i]
-        const obj = {}
-        obj.id = item.id
-        obj.nombre = item.nombre
-        obj.precio =
+      const serverData = datos.map(function (item) {
+        const precio = item.precio
+        item.precio =
           item.porkilos === 1
-            ? item.precio
-            : parseFloat(item.precio / item.unixcaja)
-        obj.disponible = item.disponible
-        obj.preciocaj = item.preciocaj
-        obj.unixcaja = item.unixcaja
-        obj.idcategoria = item.idcategoria
-        obj.costoactu = item.costoactu
-        obj.porciva = item.porciva
-        obj.porkilos = item.porkilos
-        obj.imagen = false
-        const resp2 = await productosLib.getfile(item.id)
-        if (resp2.status === 200) {
-          // console.log(resp2)
-          obj.imagen = resp2.data.imgbase64
-        }
-        serverData.push(obj)
-      }
+            ? precio
+            : parseFloat(precio / item.unixcaja)
+        return item
+      })
+      // console.log(serverData)
       this.$q.localStorage.remove('productos')
       this.$q.localStorage.set('productos', serverData)
       const resp3 = await categoriasLib.listarcategorias()
       this.$q.localStorage.remove('categorias')
       this.$q.localStorage.set('categorias', resp3.data)
+    },
+    async getProductosImg () {
+      const datos = this.$q.localStorage.getItem('productos')
+      for (const i in datos) {
+        const item = datos[i]
+        const resp = await productosLib.getfile(item.id)
+        if (resp.status === 200) {
+          const producto = {
+            imagen: item.id,
+            base: resp.data.imgbase64
+          }
+          this.addProdToDb(producto)
+        }
+      }
+    },
+    addProdToDb (item) {
+      // console.log('addProdToDb ', item)
+      return new Promise((resolve, reject) => {
+        const trans = this.db.transaction(['productos'], 'readwrite')
+        trans.oncomplete = e => {
+          resolve()
+        }
+        const store = trans.objectStore('productos')
+        store.put(item)
+        // store.add(item)
+      })
     },
     async enviarLogin () {
       this.loading = true
@@ -173,13 +184,15 @@ export default defineComponent({
               this.$q.localStorage.set('feultget', feultget)
               if (idrol === 4) {
                 this.getProductos().then(() => {
-                  console.log('Sincronizado finalizó sin problema')
+                  // console.log('Sincronizado finalizó sin problema')
                   this.feultget = moment().format('YYYY-MM-DD HH:mm:ss')
                   this.$q.localStorage.remove('feultget')
                   this.$q.localStorage.set('feultget', this.feultget)
                   this.loading = false
                   this.isDisabled = false
-                  this.$router.push('/productos')
+                  this.getProductosImg()
+                  // console.log(this.$q.localStorage.getItem('basedatosnueva'))
+                  this.$q.localStorage.getItem('basedatosnueva') === true ? this.$router.push('/bienvenido') : this.$router.push('/productos')
                 })
               } else {
                 this.loading = false
@@ -218,6 +231,27 @@ export default defineComponent({
         this.mensajeError(3)
       }
     },
+    async getDb () {
+      const Q = this.$q
+      return new Promise((resolve, reject) => {
+        const request = window.indexedDB.open(DB_NAME, DB_VERSION)
+        request.onerror = e => {
+          console.log('Error opening db', e)
+          reject('Error')
+        }
+        request.onsuccess = e => {
+          console.log(e.target.result)
+          resolve(e.target.result)
+        }
+        request.onupgradeneeded = e => {
+          console.log('BASE DE DATOS CREADA')
+          Q.localStorage.set('basedatosnueva', true)
+          const db = e.target.result
+          const objStore = db.createObjectStore('productos', { keyPath: 'imagen' })
+          console.log(objStore)
+        }
+      })
+    },
     mensajeError (resp) {
       const message = resp === 2 ? 'No hay ENLACE con BLOQUE 7' : 'No tiene INTERNET'
       this.$q.dialog({
@@ -240,8 +274,10 @@ export default defineComponent({
       }
     }
   },
-  created () {
+  async created () {
     // this.showMacAddress()
+    this.$q.localStorage.set('basedatosnueva', false)
+    this.db = await this.getDb()
     if (this.$q.localStorage.getItem('mantener')) {
       this.mantener = this.$q.localStorage.getItem('mantener')
       this.usuario = this.$q.localStorage.getItem('usuario')

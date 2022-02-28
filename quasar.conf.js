@@ -98,6 +98,7 @@ module.exports = configure(function (ctx) {
         'Dialog',
         'Notify',
         'LocalStorage',
+        'SessionStorage',
         'AddressbarColor'
       ]
     },
@@ -210,7 +211,7 @@ module.exports = configure(function (ctx) {
       builder: {
         // https://www.electron.build/configuration/configuration
 
-        appId: 'bloque7_frontend'
+        appId: 'movilpedido_frontend'
       },
 
       // "chain" is a webpack-chain object https://github.com/neutrinojs/webpack-chain

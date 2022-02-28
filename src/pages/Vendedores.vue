@@ -143,7 +143,7 @@ export default defineComponent({
     align-items: center;
     justify-content: center;
     font-size: 30px;
-    background: #5eb228;
+    background: #36d6f6;
     color: white;
   }
   .subHeaderItem{

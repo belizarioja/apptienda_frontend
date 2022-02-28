@@ -218,9 +218,9 @@
           /> -->
           <q-btn
             style=""
-            label="Cerrar"
+            label="Aceptar"
             type="buttom"
-            color="primary"
+            color="dark"
             icon="close"
             v-close-popup
           />
@@ -271,9 +271,9 @@
         <q-card-actions align="center" class=" bg-white text-primary" style="position: sticky;bottom: 0;z-index: 999;">
           <q-btn
             style=""
-            label="Cerrar"
+            label="Aceptar"
             type="buttom"
-            color="primary"
+            color="dark"
             icon="close"
             v-close-popup
           />
@@ -303,9 +303,9 @@
         <q-card-actions align="center" class=" bg-white text-primary" style="position: sticky;bottom: 0;z-index: 999; border-top: 1px solid #ccc;">
           <q-btn
             style=""
-            label="Cerrar"
+            label="Aceptar"
             type="buttom"
-            color="primary"
+            color="dark"
             icon="close"
             v-close-popup
           />
@@ -338,13 +338,15 @@ import productosLib from '../logic/productos'
 import authLib from '../logic/auth'
 const config = require('../config/endpoints.js')
 const ENDPOINT_PATH = config.endpoint_path
-
+const DB_NAME = 'productosdb'
+const DB_VERSION = 1
 export default defineComponent({
   name: 'PageIndex',
   data () {
     return {
       serverData: [],
       serverDataGroups: [],
+      db: null,
       categoria: null,
       idusuario: this.$q.localStorage.getItem('idusuario'),
       usuario: this.$q.localStorage.getItem('usuario'),
@@ -550,39 +552,32 @@ export default defineComponent({
       })
       return find.length > 0
     },
-    listarProductos (categorias) {
-      this.loading = true
-      const arreglo = this.$q.localStorage.getItem('productos') ? this.$q.localStorage.getItem('productos') : []
-      if (categorias.length > 0) {
-        this.serverData = arreglo.filter(this.esCategoria)
-      } else {
-        this.serverData = arreglo
-      }
-      /* const datos = this.$q.localStorage.getItem('productos')
-      console.log(datos)
-      for (const i in datos) {
-        const item = datos[i]
-        const obj = {}
-        obj.id = item.id
-        obj.nombre = item.nombre
-        obj.precio = item.porkilos === 1 ? item.precio : parseFloat(item.precio / item.unixcaja)
-        obj.disponible = item.disponible
-        obj.preciocaj = item.preciocaj
-        obj.unixcaja = item.unixcaja
-        obj.costoactu = item.costoactu
-        obj.porciva = item.porciva
-        obj.porkilos = item.porkilos
-        obj.imagen = item.imagen
-        if (item.imagen) {
-          console.log(item.imagen)
-          const respimg = await productosLib.getimagenproducto(item.imagen)
-          console.log(respimg)
-          obj.imagen = this.dataUrl(respimg.data[0].imagen)
+    getproductsFromDb () {
+      return new Promise((resolve, reject) => {
+        const trans = this.db.transaction(['productos'], 'readonly')
+        trans.oncomplete = e => {
+          resolve(products)
         }
-        this.serverData.push(obj)
-      } */
-      this.loading = false
+        const store = trans.objectStore('productos')
+        const products = []
+        store.openCursor().onsuccess = e => {
+          const cursor = e.target.result
+          if (cursor) {
+            products.push(cursor.value)
+            cursor.continue()
+          }
+        }
+      })
+    },
+    async listarProductos (categorias) {
+      this.loading = true
+      if (categorias.length > 0) {
+        this.serverData = this.productosStore.filter(this.esCategoria)
+      } else {
+        this.serverData = this.productosStore
+      }
       // console.log(this.serverData)
+      this.loading = false
     },
     async updateProductos () {
       const respnet = await this.checkNet()
@@ -592,40 +587,72 @@ export default defineComponent({
       }
       this.loader = true
       const resp = await productosLib.listar(null)
-      const serverData = []
+      // const serverData = []
       const datos = resp.data
-      for (const i in datos) {
-        const item = datos[i]
-        const obj = {}
-        obj.id = item.id
-        obj.nombre = item.nombre
-        obj.precio =
+      const serverData = datos.map(function (item) {
+        const precio = item.precio
+        item.precio =
           item.porkilos === 1
-            ? item.precio
-            : parseFloat(item.precio / item.unixcaja)
-        obj.disponible = item.disponible
-        obj.preciocaj = item.preciocaj
-        obj.unixcaja = item.unixcaja
-        obj.idcategoria = item.idcategoria
-        obj.costoactu = item.costoactu
-        obj.porciva = item.porciva
-        obj.porkilos = item.porkilos
-        obj.imagen = false
-        const resp2 = await productosLib.getfile(item.id)
-        if (resp2.status === 200) {
-          // console.log(resp2)
-          obj.imagen = resp2.data.imgbase64
-        }
-        serverData.push(obj)
-      }
+            ? precio
+            : parseFloat(precio / item.unixcaja)
+        return item
+      })
       this.$q.localStorage.remove('productos')
       this.$q.localStorage.set('productos', serverData)
       const resp3 = await categoriasLib.listarcategorias()
       this.$q.localStorage.remove('categorias')
       this.$q.localStorage.set('categorias', resp3.data)
+      this.getProductosImg()
       this.listarProductos([])
       this.listarCategorias()
       this.loader = false
+    },
+    async getProductosImg () {
+      const datos = this.$q.localStorage.getItem('productos')
+      for (const i in datos) {
+        const item = datos[i]
+        const resp = await productosLib.getfile(item.id)
+        if (resp.status === 200) {
+          const producto = {
+            imagen: item.id,
+            base: resp.data.imgbase64
+          }
+          this.addProdToDb(producto)
+        }
+      }
+    },
+    addProdToDb (item) {
+      // console.log('addProdToDb ', item)
+      return new Promise((resolve, reject) => {
+        const trans = this.db.transaction(['productos'], 'readwrite')
+        trans.oncomplete = e => {
+          resolve()
+        }
+        const store = trans.objectStore('productos')
+        store.put(item)
+        // store.add(item)
+      })
+    },
+    async getDb () {
+      return new Promise((resolve, reject) => {
+        const request = window.indexedDB.open(DB_NAME, DB_VERSION)
+        request.onerror = e => {
+          console.log('Error opening db', e)
+          reject('Error')
+        }
+
+        request.onsuccess = e => {
+          resolve(e.target.result)
+        }
+
+        request.onupgradeneeded = e => {
+          console.log('onupgradeneeded')
+          const db = e.target.result
+          const objectStore = db.createObjectStore('productos', { autoIncrement: true, keyPath: 'id' })
+          objectStore.createIndex('idx_imagen', 'imagen', { unique: true })
+          // console.log(objectStore)
+        }
+      })
     }
   },
   computed: {
@@ -675,8 +702,21 @@ export default defineComponent({
     }
   },
   async mounted () {
+    this.loading = true
+    this.db = await this.getDb()
+    this.products = await this.getproductsFromDb()
+    // console.log(this.products)
+    this.productosStore = this.$q.localStorage.getItem('productos') ? this.$q.localStorage.getItem('productos') : []
+    this.serverData = []
+    for (const i in this.productosStore) {
+      const item = this.productosStore[i]
+      const imagen = this.products.filter(obj => obj.imagen === item.id)
+      item.imagen = imagen.length > 0 ? imagen[0].base : false
+      this.serverData.push(item)
+    }
     this.listarProductos([])
     this.listarCategorias()
+    this.loading = false
   }
 })
 </script>
@@ -694,7 +734,7 @@ export default defineComponent({
     align-items: center;
     justify-content: center;
     font-size: 30px;
-    background: #5eb228;
+    background: #36d6f6;
     color: white;
   }
   .subHeaderItem{
@@ -707,7 +747,7 @@ export default defineComponent({
   }
   .headerTableItems{
     background: #e7e3e3;
-    color: #225401;
+    color: #033faf;
     /* font-weight: bold; */
     height: 23px;
     font-size: 12px;
@@ -720,7 +760,7 @@ export default defineComponent({
   .rowTableItemsPrecio{
     font-weight: bold;
     height: 23px;
-    color: #5eb228;
+    color: #36d6f6;
     font-weight: bold;
   }
   .subtitleimagen {
@@ -751,7 +791,7 @@ export default defineComponent({
     pointer-events: all;
     padding: 5px;
     color: #fff;
-    background: #225401;
+    background: #033faf;
     font-size: 12px;
     position: absolute;
     bottom: 2px;
@@ -782,7 +822,7 @@ export default defineComponent({
   .divselections {
     border-radius: 10px;
     background: #e7e3e3;
-    color: #225401;
+    color: #033faf;
     font-size: 10px;
     /* border: 1px solid #707271; */
     width: -webkit-fit-content;

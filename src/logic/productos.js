@@ -5,7 +5,7 @@ const ENDPOINT_PATH = config.endpoint_path
 class Producto {
   listar (categoria) {
     const data = { categoria }
-    return axios.post(ENDPOINT_PATH + 'listarproductosimg', data)
+    return axios.post(ENDPOINT_PATH + 'listarproductos', data)
   }
 
   migrarproductos () {
